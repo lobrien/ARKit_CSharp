@@ -133,7 +133,7 @@ namespace ARKitDemo
 
 		SCNNode PlaceCube(SCNVector3 pos)
 		{
-			var box = new SCNBox { Width = 0.1f, Height = 0.1f, Length = 0.1f };
+			var box = new SCNBox { Width = 0.025f, Height = 0.025f, Length = 0.025f };
 			var cubeNode = new SCNNode { Position = pos, Geometry = box };
 			cubeNode.Geometry.Materials = LoadMaterials();
 			scnView.Scene.RootNode.AddChildNode(cubeNode);
