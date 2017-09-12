@@ -20,6 +20,9 @@ namespace ARKitDemo
 
 		void PlaceAnchorNode(SCNNode node, ARPlaneAnchor anchor)
 		{
+			//BUG: Extent.Z should be at least a few dozen centimeters
+			System.Console.WriteLine($"The extent of the anchor is [{anchor.Extent.X}, {anchor.Extent.Y}, {anchor.Extent.Z}]");
+
 			var plane = SCNPlane.Create(anchor.Extent.X, anchor.Extent.Z);
 			plane.FirstMaterial.Diffuse.Contents = UIColor.LightGray;
 			var planeNode = SCNNode.FromGeometry(plane);
@@ -36,6 +39,17 @@ namespace ARKitDemo
 
 			var anchorNode = new SCNNode { Position = new SCNVector3(0, 0, 0), Geometry = box };
 			planeNode.AddChildNode(anchorNode);
+		}
+
+		public override void DidUpdateNode(ISCNSceneRenderer renderer, SCNNode node, ARAnchor anchor)
+		{
+
+			if (anchor is ARPlaneAnchor)
+			{
+				var planeAnchor = anchor as ARPlaneAnchor;
+				//BUG: Extent.Z should be at least a few dozen centimeters
+				System.Console.WriteLine($"The (updated) extent of the anchor is [{planeAnchor.Extent.X}, {planeAnchor.Extent.Y}, {planeAnchor.Extent.Z}]");
+			}
 		}
 	}
 
@@ -70,11 +84,11 @@ namespace ARKitDemo
 			base.ViewWillAppear(animated);
 
 			// Configure ARKit 
-			var configuration = new ARWorldTrackingSessionConfiguration();
-			configuration.PlaneDetection = ARPlaneDetection.Horizontal;
+			var config = new ARWorldTrackingConfiguration();
+			config.PlaneDetection = ARPlaneDetection.Horizontal;
 
 			// This method is called subsequent to `ViewDidLoad` so we know `scnView` is instantiated
-			scnView.Session.Run(configuration);
+			scnView.Session.Run(config, ARSessionRunOptions.RemoveExistingAnchors);
 		}
 
 		public override void TouchesBegan(NSSet touches, UIEvent evt)
@@ -92,9 +106,9 @@ namespace ARKitDemo
 			}
 		}
 
-		private SCNVector3 PositionFromTransform(OpenTK.Matrix4 xform)
+		private SCNVector3 PositionFromTransform(Simd.MatrixFloat4x4 xform)
 		{
-			return new SCNVector3(xform.M41, xform.M42, xform.M43);
+			return new SCNVector3(xform.M14, xform.M24, xform.M34);
 		}
 
 		Tuple<SCNVector3, ARAnchor> WorldPositionFromHitTest (CGPoint pt)
@@ -139,7 +153,6 @@ namespace ARKitDemo
 			scnView.Scene.RootNode.AddChildNode(cubeNode);
 			return cubeNode;
 		}
-
 	}
 
     [Register ("AppDelegate")]
