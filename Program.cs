@@ -5,53 +5,54 @@ using Foundation;
 using System;
 using CoreGraphics;
 using System.Linq;
+using OpenTK;
 
 namespace ARKitDemo
 {
-	public class ARDelegate : ARSCNViewDelegate
+public class ARDelegate : ARSCNViewDelegate
+{
+	public override void DidAddNode(ISCNSceneRenderer renderer, SCNNode node, ARAnchor anchor)
 	{
-		public override void DidAddNode(ISCNSceneRenderer renderer, SCNNode node, ARAnchor anchor)
+		if (anchor != null && anchor is ARPlaneAnchor)
 		{
-			if (anchor != null && anchor is ARPlaneAnchor)
-			{
-				PlaceAnchorNode(node, anchor as ARPlaneAnchor);
-			}
-		}
-
-		void PlaceAnchorNode(SCNNode node, ARPlaneAnchor anchor)
-		{
-			//BUG: Extent.Z should be at least a few dozen centimeters
-			System.Console.WriteLine($"The extent of the anchor is [{anchor.Extent.X}, {anchor.Extent.Y}, {anchor.Extent.Z}]");
-
-			var plane = SCNPlane.Create(anchor.Extent.X, anchor.Extent.Z);
-			plane.FirstMaterial.Diffuse.Contents = UIColor.LightGray;
-			var planeNode = SCNNode.FromGeometry(plane);
-
-			//Locate the plane at the position of the anchor
-			planeNode.Position = new SCNVector3(anchor.Extent.X, 0.0f, anchor.Extent.Z);
-			//Rotate it to lie flat
-			planeNode.Transform = SCNMatrix4.CreateRotationX((float) (Math.PI / 2.0));
-			node.AddChildNode(planeNode);
-
-			//Mark the anchor with a small red box
-			var box = new SCNBox { Height = 0.1f, Width = 0.1f, Length = 0.1f };
-			box.FirstMaterial.Diffuse.ContentColor = UIColor.Red;
-
-			var anchorNode = new SCNNode { Position = new SCNVector3(0, 0, 0), Geometry = box };
-			planeNode.AddChildNode(anchorNode);
-		}
-
-		public override void DidUpdateNode(ISCNSceneRenderer renderer, SCNNode node, ARAnchor anchor)
-		{
-
-			if (anchor is ARPlaneAnchor)
-			{
-				var planeAnchor = anchor as ARPlaneAnchor;
-				//BUG: Extent.Z should be at least a few dozen centimeters
-				System.Console.WriteLine($"The (updated) extent of the anchor is [{planeAnchor.Extent.X}, {planeAnchor.Extent.Y}, {planeAnchor.Extent.Z}]");
-			}
+			PlaceAnchorNode(node, anchor as ARPlaneAnchor);
 		}
 	}
+
+	void PlaceAnchorNode(SCNNode node, ARPlaneAnchor anchor)
+	{
+		//BUG: Extent.Z should be at least a few dozen centimeters
+		System.Console.WriteLine($"The extent of the anchor is [{anchor.Extent.X}, {anchor.Extent.Y}, {anchor.Extent.Z}]");
+
+		var plane = SCNPlane.Create(anchor.Extent.X, anchor.Extent.Z);
+		plane.FirstMaterial.Diffuse.Contents = UIColor.LightGray;
+		var planeNode = SCNNode.FromGeometry(plane);
+
+		//Locate the plane at the position of the anchor
+		planeNode.Position = new SCNVector3(anchor.Extent.X, 0.0f, anchor.Extent.Z);
+		//Rotate it to lie flat
+		planeNode.Transform = SCNMatrix4.CreateRotationX((float) (Math.PI / 2.0));
+		node.AddChildNode(planeNode);
+
+		//Mark the anchor with a small red box
+		var box = new SCNBox { Height = 0.1f, Width = 0.1f, Length = 0.1f };
+		box.FirstMaterial.Diffuse.ContentColor = UIColor.Red;
+
+		var anchorNode = new SCNNode { Position = new SCNVector3(0, 0, 0), Geometry = box };
+		planeNode.AddChildNode(anchorNode);
+	}
+
+	public override void DidUpdateNode(ISCNSceneRenderer renderer, SCNNode node, ARAnchor anchor)
+	{
+
+		if (anchor is ARPlaneAnchor)
+		{
+			var planeAnchor = anchor as ARPlaneAnchor;
+			//BUG: Extent.Z should be at least a few dozen centimeters
+			System.Console.WriteLine($"The (updated) extent of the anchor is [{planeAnchor.Extent.X}, {planeAnchor.Extent.Y}, {planeAnchor.Extent.Z}]");
+		}
+	}
+}
 
 	public class ARKitController : UIViewController
 	{
@@ -99,19 +100,19 @@ namespace ARKitDemo
 			{
 				var loc = touch.LocationInView(scnView);
 				var worldPos = WorldPositionFromHitTest(loc);
-				if (worldPos != null)
+				if (worldPos.Item1.HasValue)
 				{
-					PlaceCube(worldPos.Item1);
+					PlaceCube(worldPos.Item1.Value);
 				}
 			}
 		}
 
-		private SCNVector3 PositionFromTransform(Simd.MatrixFloat4x4 xform)
+		private SCNVector3 PositionFromTransform(NMatrix4 xform)
 		{
 			return new SCNVector3(xform.M14, xform.M24, xform.M34);
 		}
 
-		Tuple<SCNVector3, ARAnchor> WorldPositionFromHitTest (CGPoint pt)
+		(SCNVector3?, ARAnchor) WorldPositionFromHitTest (CGPoint pt)
 		{
 			//Hit test against existing anchors
 			var hits = scnView.HitTest(pt, ARHitTestResultType.ExistingPlaneUsingExtent);
@@ -122,10 +123,10 @@ namespace ARKitDemo
 				{
 					var first = anchors.First();
 					var pos = PositionFromTransform(first.WorldTransform);
-					return new Tuple<SCNVector3, ARAnchor>(pos, (ARPlaneAnchor)first.Anchor);
+					return (pos, (ARPlaneAnchor)first.Anchor);
 				}
 			}
-			return null;
+			return (null, null);
 		}
 
 		private SCNMaterial[] LoadMaterials()
@@ -147,7 +148,7 @@ namespace ARKitDemo
 
 		SCNNode PlaceCube(SCNVector3 pos)
 		{
-			var box = new SCNBox { Width = 0.025f, Height = 0.025f, Length = 0.025f };
+			var box = new SCNBox { Width = 0.25f, Height = 0.25f, Length = 0.25f };
 			var cubeNode = new SCNNode { Position = pos, Geometry = box };
 			cubeNode.Geometry.Materials = LoadMaterials();
 			scnView.Scene.RootNode.AddChildNode(cubeNode);
