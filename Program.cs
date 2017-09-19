@@ -21,9 +21,6 @@ public class ARDelegate : ARSCNViewDelegate
 
 	void PlaceAnchorNode(SCNNode node, ARPlaneAnchor anchor)
 	{
-		//BUG: Extent.Z should be at least a few dozen centimeters
-		System.Console.WriteLine($"The extent of the anchor is [{anchor.Extent.X}, {anchor.Extent.Y}, {anchor.Extent.Z}]");
-
 		var plane = SCNPlane.Create(anchor.Extent.X, anchor.Extent.Z);
 		plane.FirstMaterial.Diffuse.Contents = UIColor.LightGray;
 		var planeNode = SCNNode.FromGeometry(plane);
@@ -112,7 +109,7 @@ public class ARDelegate : ARSCNViewDelegate
 			return new SCNVector3(xform.M14, xform.M24, xform.M34);
 		}
 
-		(SCNVector3?, ARAnchor) WorldPositionFromHitTest (CGPoint pt)
+		Tuple<SCNVector3?, ARAnchor> WorldPositionFromHitTest (CGPoint pt)
 		{
 			//Hit test against existing anchors
 			var hits = scnView.HitTest(pt, ARHitTestResultType.ExistingPlaneUsingExtent);
@@ -123,10 +120,10 @@ public class ARDelegate : ARSCNViewDelegate
 				{
 					var first = anchors.First();
 					var pos = PositionFromTransform(first.WorldTransform);
-					return (pos, (ARPlaneAnchor)first.Anchor);
+					return new Tuple<SCNVector3?, ARAnchor>(pos, (ARPlaneAnchor)first.Anchor);
 				}
 			}
-			return (null, null);
+			return new Tuple<SCNVector3?, ARAnchor>(null, null);
 		}
 
 		private SCNMaterial[] LoadMaterials()
